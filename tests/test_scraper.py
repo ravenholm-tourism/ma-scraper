@@ -1,7 +1,6 @@
 import scraper.scraper as s
 
 class TestGetAlbumUrl:
-    
     def test_top_result(self):
         band = "cult leader"
         album = "a patient man"
@@ -22,3 +21,12 @@ class TestGetAlbumUrl:
         url = s.get_album_url(band, album)
         # print(url)
         assert url is None
+
+class TestGetUpcomingReleases:
+    def test_get_releases(self):
+        start = '2024-02-03'
+        end = start
+        r = s.get_upcoming_resp(start, end)
+        # print(r)
+        # print(len(r))
+        assert len(r) >= 20

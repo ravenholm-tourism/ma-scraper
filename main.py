@@ -1,7 +1,17 @@
 import scraper.scraper as s
+import sys
 
-fromDate = "2024-01-29"
-toDate = "2024-02-03"
+fromDate = ""
+toDate = ""
+
+try:
+    with open("daterange.txt", "r") as f:
+        fromDate = f.readline().strip()
+        toDate = f.readline().strip()
+        print(f"{fromDate=} {toDate=}")
+except Exception as e:
+    print("Error: ", str(e))
+    sys.exit()
 
 releases = s.get_upcoming_resp(fromDate, toDate)
 filename = "ttt_" + fromDate + "_" + toDate + "_html.txt"
