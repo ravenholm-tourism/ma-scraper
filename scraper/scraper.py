@@ -70,19 +70,19 @@ def get_upcoming_resp(fromDate, toDate):
             themes = "N/A"
         
         ## themes filtering logic
-        with open("theme_blacklist.txt", "r") as f:
+        with open("data/theme_blacklist.txt", "r") as f:
             ban_themes = [l.strip() for l in f]
             if themes in ban_themes:
                 continue
 
         ## label filtering logic
-        with open("label_blacklist.txt", "r") as f:
+        with open("data/label_blacklist.txt", "r") as f:
             ban_labels = [l.strip() for l in f]
             if label in ban_labels:
                 continue
 
         ## band filtering logic
-        with open("band_blacklist.txt", "r") as f:
+        with open("data/band_blacklist.txt", "r") as f:
             ban_bands = [l.strip() for l in f]
             if band in ban_bands:
                 continue
