@@ -25,7 +25,7 @@ for r in releases:
     if url is None:
         ln = '<b>' + band + ' - ' + album + ' (' + label + ') [' + genre + ']</b>\r\n'
     else:
-        ln = '<b>' + band + ' - </b><a href="' + url + '">' + album + '</a><b> (' + label + ') [' + genre + ']</b>\r\n'
+        ln = '<b>' + band + ' - <a href="' + url + '">' + album + '</a> (' + label + ') [' + genre + ']</b>\r\n'
     release_list.append(ln)
         
 release_list.sort()
