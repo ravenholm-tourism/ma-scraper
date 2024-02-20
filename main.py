@@ -26,6 +26,8 @@ for r in releases:
         ln = '<b>' + band + ' - ' + album + ' (' + label + ') [' + genre + ']</b>\r\n'
     else:
         ln = '<b>' + band + ' - <a href="' + url + '">' + album + '</a> (' + label + ') [' + genre + ']</b>\r\n'
+    if sys.platform == "linux":
+        ln += "\r\n"
     release_list.append(ln)
         
 release_list.sort()
