@@ -22,6 +22,10 @@ UPCOMING_URL = "release/ajax-upcoming/json/1"
 starttime = time.time()
 runcount = 0
 
+options = Options()
+options.add_argument("--headless=new")
+d = webdriver.Chrome(options=options)
+
 @sleep_and_retry
 def get_upcoming_resp(fromDate, toDate):
     params = {
@@ -153,9 +157,6 @@ def get_album_url(band, album):
     query = " ".join((band, album))
     search_url = "https://bandcamp.com/search?q=" + urllib.parse.quote_plus(query) + "&item_type=a"
 
-    options = Options()
-    options.add_argument("--headless=new")
-    d = webdriver.Chrome(options=options)
     d.get(search_url)
     results = d.find_elements(By.CLASS_NAME, "searchresult")
     if len(results) > 0:
