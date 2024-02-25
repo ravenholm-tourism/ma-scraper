@@ -31,7 +31,7 @@ for r in releases:
     release_list.append(ln)
         
 release_list.sort()
-with open(filename, "w") as f:
+with open(filename, "w", encoding="utf-8") as f:
     f.writelines(release_list)
     
 print("done")
