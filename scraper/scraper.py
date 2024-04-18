@@ -37,12 +37,14 @@ def get_upcoming_resp(fromDate, toDate):
     headers = {
         "Connection": "keep-alive",
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+        # "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+        "User-Agent": "ToiletOvHell",
         "Accept-Encoding": "gzip, deflate",
-        "Cookie": "PHPSESSID=fddn6getjvfe4gepqbfa7nrd75"
+        "Cookie": "PHPSESSID=9bf145a7fba0e55db7778bc90ffa2897&cf_clearance=cgL0wan6Ko3VYq12d0EMWFiG6B2Vw2R4K4WamTWuV8w-1713190386-1.0.1.1-Kj3rMMb1toJHdkM13hwvVrl6IP5RcGD4ijP7Wk9Mp.kndlB8udo0RHPxVyCQfYzxcmrKUTNbllkHzCagemCVJQ"
     }
     resp = requests.request("GET", BASEURL + UPCOMING_URL, params=params, headers=headers)
     _s = resp.text
+    print(_s)
     # ix = _s.find('"sEcho":') + 8
     # s = _s[:ix] + "0" + _s[ix:]
     j = json.loads(_s)

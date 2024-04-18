@@ -2,4 +2,6 @@
 .vscode/
 .pytest_cache/
 __pycache__/
-output/
+ttt_*
+data/*.json
+data/*.json.bak
