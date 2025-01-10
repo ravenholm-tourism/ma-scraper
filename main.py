@@ -1,3 +1,5 @@
+# scraper isn't finding some full lengths and eps
+
 import scraper.scraper as s
 import sys
 

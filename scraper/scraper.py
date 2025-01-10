@@ -12,12 +12,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
 
-
-
 BASEURL = "https://www.metal-archives.com/"
 PREFIX_RELURL = "browse/ajax-letter/l/"
 POSTFIX_RELURL = "/json"
 UPCOMING_URL = "release/ajax-upcoming/json/1"
+URL = BASEURL + UPCOMING_URL
+
+RELEASES_PER_PAGE = 100
 
 starttime = time.time()
 runcount = 0
@@ -40,19 +41,27 @@ def get_upcoming_resp(fromDate, toDate):
         "User-Agent": "ToiletOvHell",
         "Accept-Encoding": "gzip, deflate"
     }
-    resp = requests.request("GET", BASEURL + UPCOMING_URL, params=params, headers=headers)
+    resp = requests.request("GET", URL, params=params, headers=headers)
     _s = resp.text
     print(_s)
     # ix = _s.find('"sEcho":') + 8
     # s = _s[:ix] + "0" + _s[ix:]
     j = json.loads(_s)
-    print("Total Entries", j["iTotalRecords"])
-    # TODO if > 100, deal with pages
-    all_releases = j["aaData"]
-    releases = [r for r in all_releases if r[2] in ("Full-length", "EP", "Split")]
-    
-    clean_releases = []
-    for i, r in enumerate(releases):
+    release_count = j["iTotalRecords"]
+    print("Total Entries", release_count)
+    releases = j["aaData"]
+
+    # if > 100 releases, deal with pages
+    release_max_index = release_count - 1
+    page_count = release_max_index // RELEASES_PER_PAGE + 1 if release_max_index % RELEASES_PER_PAGE != 0 else release_max_index // RELEASES_PER_PAGE
+    if page_count > 1:
+        releases += get_additional_pages(params, headers, page_count)
+
+
+    # only care about full-lengths, eps, and splits
+    clean_releases = [r for r in releases if r[2] in ("Full-length", "EP", "Split")]
+    formatted_releases = []
+    for i, r in enumerate(clean_releases):
         if i % 10 == 0:
             print(f"getting release {i}")
         band = BeautifulSoup(r[0], features="lxml").find("a").text
@@ -92,12 +101,21 @@ def get_upcoming_resp(fromDate, toDate):
                 continue
         
         bc_url = get_album_url(band, album)
-        clean_releases.append([band, album, r[2], label, r[3], bc_url])
+        formatted_releases.append([band, album, r[2], label, r[3], bc_url])
 
-    return clean_releases
+    return formatted_releases
     
     
-    
+@sleep_and_retry
+def get_additional_pages(params, headers, page_count):
+    releases = []
+    for i in range(2, page_count+1):
+        params["iDisplayStart"] = (i - 1) * RELEASES_PER_PAGE
+        resp = requests.request("GET", URL, params=params, headers=headers)
+        if resp.status_code == 200:
+            j = json.loads(resp.text)
+            releases += j["aaData"]
+    return releases
 
 
 

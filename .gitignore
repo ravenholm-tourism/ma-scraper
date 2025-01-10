@@ -5,3 +5,5 @@ __pycache__/
 ttt_*
 data/*.json
 data/*.json.bak
+build/
+dist/
