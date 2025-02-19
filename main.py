@@ -27,7 +27,7 @@ for r in releases:
     if url is None:
         ln = '<b>' + band + ' - ' + album + ' (' + label + ') [' + genre + ']</b>\r\n'
     else:
-        ln = '<b>' + band + ' - <a href="' + url + '">' + album + '</a> (' + label + ') [' + genre + ']</b>\r\n'
+        ln = '<b>' + band + ' - <a href="' + url + '" target="_blank" rel="noopener">' + album + '</a> (' + label + ') [' + genre + ']</b>\r\n'
     if sys.platform == "linux":
         ln += "\r\n"
     release_list.append(ln)

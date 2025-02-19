@@ -59,6 +59,7 @@ def get_upcoming_resp(fromDate, toDate):
 
 
     # only care about full-lengths, eps, and splits
+    clean_releases = []
     clean_releases = [r for r in releases if r[2] in ("Full-length", "EP", "Split")]
     formatted_releases = []
     for i, r in enumerate(clean_releases):
@@ -109,8 +110,8 @@ def get_upcoming_resp(fromDate, toDate):
 @sleep_and_retry
 def get_additional_pages(params, headers, page_count):
     releases = []
-    for i in range(2, page_count+1):
-        params["iDisplayStart"] = (i - 1) * RELEASES_PER_PAGE
+    for i in range(1, page_count):
+        params["iDisplayStart"] = i * RELEASES_PER_PAGE
         resp = requests.request("GET", URL, params=params, headers=headers)
         if resp.status_code == 200:
             j = json.loads(resp.text)
