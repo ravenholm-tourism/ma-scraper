@@ -1,15 +1,13 @@
 import time
-import requests
+import httpx
 import json
 from json import JSONDecodeError
-import re
-from ratelimit import limits, sleep_and_retry
-from datetime import datetime
 from bs4 import BeautifulSoup
 import urllib.parse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
 
 
 BASEURL = "https://www.metal-archives.com/"
@@ -19,172 +17,127 @@ UPCOMING_URL = "release/ajax-upcoming/json/1"
 URL = BASEURL + UPCOMING_URL
 
 RELEASES_PER_PAGE = 100
-
-starttime = time.time()
-runcount = 0
+HTTP2 = True
+MA_TIMEOUT = 45.0
 
 options = Options()
-options.add_argument("--headless=new")
-d = webdriver.Chrome(options=options)
+# options.add_argument("--headless=new")
+options.add_argument("--headless")
+options.add_argument("--disable-extensions")
+driver = webdriver.Chrome(options=options)
+driver.set_page_load_timeout(30)
 
-@sleep_and_retry
 def get_upcoming_resp(fromDate, toDate):
-    params = {
-        "iColumns": 6,
-        "includeVersions": 0,
-        "fromDate": fromDate,
-        "toDate": toDate
-    }
-    headers = {
-        "Connection": "keep-alive",
-        "Content-Type": "application/json",
-        "User-Agent": "ToiletOvHell",
-        "Accept-Encoding": "gzip, deflate"
-    }
-    resp = requests.request("GET", URL, params=params, headers=headers)
-    _s = resp.text
-    print(_s)
-    # ix = _s.find('"sEcho":') + 8
-    # s = _s[:ix] + "0" + _s[ix:]
-    j = json.loads(_s)
-    release_count = j["iTotalRecords"]
-    print("Total Entries", release_count)
-    releases = j["aaData"]
+  params = {
+    "fromDate": fromDate,
+    "toDate": toDate
+  }
+  headers = {
+    "Connection": "keep-alive",
+    "Content-Type": "application/json",
+    "User-Agent": "ToiletOvHell",
+    "Accept-Encoding": "gzip, deflate"
+  }
+  with httpx.Client(http2=HTTP2, timeout=MA_TIMEOUT) as client:
+    resp = client.get(URL, params=params, headers=headers)
+  j = json.loads(resp.text)
+  release_count = j["iTotalRecords"]
+  releases = j["aaData"]
 
-    # if > 100 releases, deal with pages
-    release_max_index = release_count - 1
-    page_count = release_max_index // RELEASES_PER_PAGE + 1 if release_max_index % RELEASES_PER_PAGE != 0 else release_max_index // RELEASES_PER_PAGE
-    if page_count > 1:
-        releases += get_additional_pages(params, headers, page_count)
+  # if > 100 releases, deal with pages
+  release_max_index = release_count - 1
+  page_count = release_max_index // RELEASES_PER_PAGE + 1 if release_max_index % RELEASES_PER_PAGE != 0 else release_max_index // RELEASES_PER_PAGE
+  if page_count > 1:
+    releases += get_additional_pages(params, headers, page_count)
+  
+  return releases, params, headers
 
+def cleanup_releases(releases, headers):
+  filtered_releases = []
+  # only care about full-lengths, eps, and splits
+  filtered_releases = [r for r in releases if r[2] in ("Full-length", "EP", "Split")]
+  print(f"Number of LP, EP, and Split releases: {len(filtered_releases)}")
 
-    # only care about full-lengths, eps, and splits
-    clean_releases = []
-    clean_releases = [r for r in releases if r[2] in ("Full-length", "EP", "Split")]
-    formatted_releases = []
-    for i, r in enumerate(clean_releases):
-        if i % 10 == 0:
-            print(f"getting release {i}")
-        band = BeautifulSoup(r[0], features="lxml").find("a").text
-        album = BeautifulSoup(r[1], features="lxml").find("a").text
-        album_url = BeautifulSoup(r[1], features="lxml").find("a")["href"]
-        album_resp = requests.request("GET", album_url, headers=headers)
-        label_tag_parent = BeautifulSoup(album_resp.content, features="lxml").find_all("dl", class_="float_right")
-        if len(label_tag_parent) == 1:
-            label = label_tag_parent[0].select_one("dd").text
-        else:
-            label = "N/A"
-        
-        band_url = BeautifulSoup(r[0], features="lxml").find("a")["href"]
-        band_resp = requests.request("GET", band_url, headers=headers)
-        themes_tag_parent = BeautifulSoup(band_resp.content, features="lxml").find_all("dl", class_="float_right")
-        if len(themes_tag_parent) == 1:
-            themes = themes_tag_parent[0].find_all("dd")[1].text
-        else:
-            themes = "N/A"
-        
-        ## themes filtering logic
-        with open("data/theme_blacklist.txt", "r") as f:
-            ban_themes = [l.strip() for l in f]
-            if themes in ban_themes:
-                continue
+  # format releases so they can be copied directly to TovH
+  formatted_releases = []
+  for i, r in enumerate(filtered_releases):
+    band = BeautifulSoup(r[0], features="lxml").find("a").text
+    album = BeautifulSoup(r[1], features="lxml").find("a").text
+    genre = r[3]
 
-        ## label filtering logic
-        with open("data/label_blacklist.txt", "r") as f:
-            ban_labels = [l.strip() for l in f]
-            if label in ban_labels:
-                continue
-
-        ## band filtering logic
-        with open("data/band_blacklist.txt", "r") as f:
-            ban_bands = [l.strip() for l in f]
-            if band in ban_bands:
-                continue
-        
-        bc_url = get_album_url(band, album)
-        formatted_releases.append([band, album, r[2], label, r[3], bc_url])
-
-    return formatted_releases
-    
-    
-@sleep_and_retry
-def get_additional_pages(params, headers, page_count):
-    releases = []
-    for i in range(1, page_count):
-        params["iDisplayStart"] = i * RELEASES_PER_PAGE
-        resp = requests.request("GET", URL, params=params, headers=headers)
-        if resp.status_code == 200:
-            j = json.loads(resp.text)
-            releases += j["aaData"]
-    return releases
-
-
-
-
-@sleep_and_retry
-# @limits(15, period=900)
-def get_alpha_resp(letter="A", start=0, length=500):
-    ## gets all bands starting with letter
-    payload = {
-        "sEcho": 0,
-        "iDisplayStart": start,
-        "iDisplayLength": length
-    }
-    resp = requests.get(BASEURL + PREFIX_RELURL + letter + POSTFIX_RELURL, params=payload)
-    print(resp.status_code)
-    # print(resp.headers)
-    # print(resp.text[:70])
-    # print(resp.text.find("sEcho"))
-    # print(resp.text.find(": ,"))
-    _noval = resp.text.find(": ,")
-    print(_noval) 
-    txt = resp.text[:_noval+2] + "0" + resp.text[_noval+2:]     #HACK: response is an invalid json with a key that's missing a value, so I add one
-    global runcount
-    runcount +=1
-    if resp.text != '0':
-        j = json.loads(txt)
+    album_url = BeautifulSoup(r[1], features="lxml").find("a")["href"]
+    with httpx.Client(http2=HTTP2, timeout=MA_TIMEOUT) as client:
+      album_resp = client.get(album_url, headers=headers)
+    label_tag_parent = BeautifulSoup(album_resp.content, features="lxml").find_all("dl", class_="float_right")
+    if len(label_tag_parent) == 1:
+      label = label_tag_parent[0].select_one("dd").text
     else:
-        elapsed = time.time()-starttime
-        print("seconds elapsed:", elapsed)
-        print("successfull calls:", runcount)
-        raise Exception("rate limited by cloudflare")
-    return j
+      label = "N/A"
 
-def get_bandlist(j):
-    bandlist = {
-        'url': [],
-        'name': [],
-        'country': [],
-        'genre': [],
-        'status': []
-    }
+    band_url = BeautifulSoup(r[0], features="lxml").find("a")["href"]
+    with httpx.Client(http2=HTTP2, timeout=MA_TIMEOUT) as client:
+      band_resp = client.get(band_url, headers=headers)
+    themes_tag_parent = BeautifulSoup(band_resp.content, features="lxml").find_all("dl", class_="float_right")
+    if len(themes_tag_parent) == 1:
+      themes = themes_tag_parent[0].find_all("dd")[1].text
+    else:
+      themes = "N/A"
+        
+    ## filtering logic from blacklist
+    with open("data/theme_blacklist.txt", "r") as f:
+      ban_themes = [l.strip() for l in f]
+      if themes in ban_themes:
+          continue
 
-    # loop through bands in json and add to bandlist dict
-    for r in j['aaData']:
-        url = re.findall("href=[\"\'](.*?)[\"\']", r[0])
-        bandlist['url'].append(url[0])
-        name = re.findall(">(.*?)<", r[0])
-        bandlist['name'].append(name[0])
-        status = re.findall(">(.*?)<", r[3])
-        bandlist['status'].append(status[0])
-        bandlist['country'].append(r[1])
-        bandlist['genre'].append(r[2])
+    with open("data/label_blacklist.txt", "r") as f:
+      ban_labels = [l.strip() for l in f]
+      if label in ban_labels:
+          continue
 
-    return bandlist
+    with open("data/band_blacklist.txt", "r") as f:
+      ban_bands = [l.strip() for l in f]
+      if band in ban_bands:
+          continue
+    
+    # print every 10th release
+    if i % 5 == 0:
+      print(f"Release #{i}")
+      print(f"Band: {band}")
+      print(f"Album: {album}")
+
+    bc_url = get_album_url(band, album)
+    formatted_releases.append([band, album, label, genre, bc_url])
+
+  return formatted_releases
+
+def get_additional_pages(params, headers, page_count):
+  releases = []
+  for i in range(1, page_count):
+    params["iDisplayStart"] = i * RELEASES_PER_PAGE
+    with httpx.Client(http2=HTTP2, timeout=MA_TIMEOUT) as client:
+      resp = client.get(URL, params=params, headers=headers)
+    if resp.status_code == 200:
+      j = json.loads(resp.text)
+      releases += j["aaData"]
+  return releases
 
 def get_album_url(band, album):
-    query = " ".join((band, album))
-    search_url = "https://bandcamp.com/search?q=" + urllib.parse.quote_plus(query) + "&item_type=a"
+  query = " ".join((band, album))
+  search_url = "https://bandcamp.com/search?q=" + urllib.parse.quote_plus(query) + "&item_type=a"
 
-    d.get(search_url)
-    results = d.find_elements(By.CLASS_NAME, "searchresult")
+  try:
+    driver.get(search_url)
+    results = driver.find_elements(By.CLASS_NAME, "searchresult")
     if len(results) > 0:
-        el =  results[0]    # get first result
-        album_name = el.find_element(By.CLASS_NAME, "heading").find_element(By.TAG_NAME, "a").text
-        if album_name.lower().strip() == album.lower().strip():
-            url = el.find_element(By.CLASS_NAME, "itemurl").find_element(By.TAG_NAME, "a").text
-            return url
-        else:
-            return None
+      el =  results[0]  # get first result
+      album_name = el.find_element(By.CLASS_NAME, "heading").find_element(By.TAG_NAME, "a").text
+      if album.lower().strip() in album_name.lower().strip():
+        url = el.find_element(By.CLASS_NAME, "itemurl").find_element(By.TAG_NAME, "a").get_attribute("href")
+        return url
+      else:
+        return None
+  except TimeoutException as e:
+    print(f"Album {album} by band {band} timed out searching bandcamp for an album link. Error: {e.msg}")
     return None
-    
+
+  return None

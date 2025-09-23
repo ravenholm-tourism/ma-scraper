@@ -15,15 +15,16 @@ except Exception as e:
     print("Error: ", str(e))
     sys.exit()
 
-releases = s.get_upcoming_resp(fromDate, toDate)
+releases, params, headers = s.get_upcoming_resp(fromDate, toDate)
+formatted_releases = s.cleanup_releases(releases, headers)
 filename = "ttt_" + fromDate + "_" + toDate + "_html.txt"
 release_list = []
-for r in releases:
+for r in formatted_releases:
     band = r[0]
     album = r[1]
-    label = r[3]
-    genre = r[4]
-    url = r[5]
+    label = r[2]
+    genre = r[3]
+    url = r[4]
     if url is None:
         ln = '<b>' + band + ' - ' + album + ' (' + label + ') [' + genre + ']</b>\r\n'
     else:

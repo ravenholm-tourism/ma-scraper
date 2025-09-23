@@ -1,9 +1,15 @@
-.env/
 .vscode/
+build/
+dist/
+
+# python
+.venv/
+.env/
 .pytest_cache/
 __pycache__/
+*.ipynb
+
+# data files
 ttt_*
 data/*.json
 data/*.json.bak
-build/
-dist/
