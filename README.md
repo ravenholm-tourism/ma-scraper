@@ -3,8 +3,8 @@
 - Update the date range you want to get new releases for in `daterange.txt`:
 
 ```
-2025-09-22
-2025-09-28
+2025-09-29
+2025-10-05
 ```
 
 - Run the python file by double clicking `main.exe`

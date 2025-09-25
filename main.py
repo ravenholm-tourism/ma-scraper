@@ -1,7 +1,7 @@
-# scraper isn't finding some full lengths and eps
+#!/bin/env/python3
 
-import scraper.scraper as s
 import sys
+import scraper.scraper as s
 
 fromDate = ""
 toDate = ""
@@ -36,5 +36,5 @@ for r in formatted_releases:
 release_list.sort()
 with open(filename, "w", encoding="utf-8") as f:
     f.writelines(release_list)
-    
+
 print("done")

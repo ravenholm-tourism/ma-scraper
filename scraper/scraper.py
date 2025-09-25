@@ -1,4 +1,3 @@
-import time
 import httpx
 import json
 from json import JSONDecodeError
@@ -21,7 +20,6 @@ HTTP2 = True
 MA_TIMEOUT = 45.0
 
 options = Options()
-# options.add_argument("--headless=new")
 options.add_argument("--headless")
 options.add_argument("--disable-extensions")
 driver = webdriver.Chrome(options=options)
@@ -100,10 +98,8 @@ def cleanup_releases(releases, headers):
           continue
     
     # print every 10th release
-    if i % 5 == 0:
-      print(f"Release #{i}")
-      print(f"Band: {band}")
-      print(f"Album: {album}")
+    if i % 10 == 0:
+      print(f"Release #{i} finished.")
 
     bc_url = get_album_url(band, album)
     formatted_releases.append([band, album, label, genre, bc_url])
