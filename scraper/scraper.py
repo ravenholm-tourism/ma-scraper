@@ -1,13 +1,6 @@
 import httpx
 import json
-from json import JSONDecodeError
 from bs4 import BeautifulSoup
-import urllib.parse
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException
-
 
 BASEURL = "https://www.metal-archives.com/"
 PREFIX_RELURL = "browse/ajax-letter/l/"
@@ -19,11 +12,9 @@ RELEASES_PER_PAGE = 100
 HTTP2 = True
 MA_TIMEOUT = 45.0
 
-options = Options()
-options.add_argument("--headless")
-options.add_argument("--disable-extensions")
-driver = webdriver.Chrome(options=options)
-driver.set_page_load_timeout(30)
+BC_ALBUM_LIST = []
+BC_ALBUM_LIST_INPUT_FILE = "copy_me_to_bc_extension.txt"
+ALBUM_INFO_TMP = "tmp/album_info.json"
 
 def get_upcoming_resp(fromDate, toDate):
   params = {
@@ -50,7 +41,7 @@ def get_upcoming_resp(fromDate, toDate):
   
   return releases, params, headers
 
-def cleanup_releases(releases, headers):
+def generate_extension_input(releases, headers):
   filtered_releases = []
   # only care about full-lengths, eps, and splits
   filtered_releases = [r for r in releases if r[2] in ("Full-length", "EP", "Split")]
@@ -59,6 +50,7 @@ def cleanup_releases(releases, headers):
   # format releases so they can be copied directly to TovH
   formatted_releases = []
   for i, r in enumerate(filtered_releases):
+    formatted_release = dict.fromkeys(["band", "album", "label", "genre", "bc_url"])
     band = BeautifulSoup(r[0], features="lxml").find("a").text
     album = BeautifulSoup(r[1], features="lxml").find("a").text
     genre = r[3]
@@ -96,15 +88,24 @@ def cleanup_releases(releases, headers):
       ban_bands = [l.strip() for l in f]
       if band in ban_bands:
           continue
+
+    formatted_release.update({
+      "band": band,
+      "album": album,
+      "label": label,
+      "genre": genre
+    })
+
+    formatted_releases.append(formatted_release)
     
-    # print every 10th release
-    if i % 10 == 0:
-      print(f"Release #{i} finished.")
-
-    bc_url = get_album_url(band, album)
-    formatted_releases.append([band, album, label, genre, bc_url])
-
-  return formatted_releases
+    append_to_bc_album_list(band, album)
+  
+  with open(ALBUM_INFO_TMP, "w") as f:
+    json.dump(formatted_releases, f)
+  
+  write_bc_album_list_to_file()
+  
+  print("List of artists + albums to copy to browser extension saved to", BC_ALBUM_LIST_INPUT_FILE)
 
 def get_additional_pages(params, headers, page_count):
   releases = []
@@ -117,23 +118,11 @@ def get_additional_pages(params, headers, page_count):
       releases += j["aaData"]
   return releases
 
-def get_album_url(band, album):
-  query = " ".join((band, album))
-  search_url = "https://bandcamp.com/search?q=" + urllib.parse.quote_plus(query) + "&item_type=a"
+def append_to_bc_album_list(band, album):
+  line = " ".join((band, album)) + "\r\n"
+  BC_ALBUM_LIST.append(line)
 
-  try:
-    driver.get(search_url)
-    results = driver.find_elements(By.CLASS_NAME, "searchresult")
-    if len(results) > 0:
-      el =  results[0]  # get first result
-      album_name = el.find_element(By.CLASS_NAME, "heading").find_element(By.TAG_NAME, "a").text
-      if album.lower().strip() in album_name.lower().strip():
-        url = el.find_element(By.CLASS_NAME, "itemurl").find_element(By.TAG_NAME, "a").get_attribute("href")
-        return url
-      else:
-        return None
-  except TimeoutException as e:
-    print(f"Album {album} by band {band} timed out searching bandcamp for an album link. Error: {e.msg}")
-    return None
+def write_bc_album_list_to_file():
+  with open(BC_ALBUM_LIST_INPUT_FILE, "w") as f:
+    f.writelines(BC_ALBUM_LIST)
 
-  return None

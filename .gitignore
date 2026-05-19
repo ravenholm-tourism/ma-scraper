@@ -13,3 +13,4 @@ __pycache__/
 ttt_*
 data/*.json
 data/*.json.bak
+tmp/
